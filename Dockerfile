@@ -1,15 +1,15 @@
-FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 COPY mrecover/ mrecover/
 
-RUN pip install --no-cache-dir .
+RUN printf "torch==2.2.2\n" > /tmp/constraints.txt \
+    && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu "torch==2.2.2" \
+    && pip install --no-cache-dir --constraint /tmp/constraints.txt .
 
+ENV PYTHONUNBUFFERED=1
 ENV HF_HOME=/cache/huggingface
-# HF_TOKEN is required to download the gated model.
-# Pass it at runtime: docker run -e HF_TOKEN=your_token ...
-ENV HF_TOKEN=""
 
 ENTRYPOINT ["mrecover"]

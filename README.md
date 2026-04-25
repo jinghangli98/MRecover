@@ -24,6 +24,32 @@ The model will be automatically downloaded from HuggingFace on first use. You wi
 huggingface-cli login
 ```
 
+## Docker
+
+Build the simple CPU image:
+
+```bash
+docker build -t mrecover:cpu .
+```
+
+Build the CUDA image for NVIDIA GPU hosts:
+
+```bash
+docker build -f Dockerfile.cuda -t mrecover:cuda12.1 .
+```
+
+Run with your Hugging Face token and a mounted data directory:
+
+```bash
+docker run --rm -e HF_TOKEN=$HF_TOKEN -v "$PWD:/data" mrecover:cpu -i /data/T1.nii.gz -o /data/T2tse.nii.gz --device cpu
+```
+
+For CUDA, use Docker on a Linux host with NVIDIA Container Toolkit:
+
+```bash
+docker run --rm --gpus all -e HF_TOKEN=$HF_TOKEN -v "$PWD:/data" mrecover:cuda12.1 -i /data/T1.nii.gz -o /data/T2tse.nii.gz --device cuda
+```
+
 ## Quick Start
 
 ### CLI
