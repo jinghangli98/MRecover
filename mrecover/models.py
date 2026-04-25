@@ -6,9 +6,9 @@ from pathlib import Path
 from tqdm import tqdm
 from monai.networks.nets import DiffusionModelUNet
 
-MODEL_URL = "https://huggingface.co/jil202/nexus_imaging/resolve/main/T2_flow_matching_best_epoch.pt"
-MODEL_FILENAME = "T2_flow_matching_best_epoch.pt"
-REPO_ID = "jil202/nexus_imaging"
+MODEL_URL = "https://huggingface.co/jil202/MRcover/resolve/main/flowmatching_best.pt"
+MODEL_FILENAME = "flowmatching_best.pt"
+REPO_ID = "jil202/MRcover"
 MODEL_CACHE_DIR = Path.home() / ".cache" / "mrecover"
 
 
@@ -35,9 +35,11 @@ def download_model(cache_dir=MODEL_CACHE_DIR):
         print(f"Model already cached at: {model_path}")
         return str(model_path)
 
-    print(f"Downloading T2 TSE model from HuggingFace ({REPO_ID}/{MODEL_FILENAME})...")
+    token = os.environ.get("HF_TOKEN") or True
+
+    print(f"Downloading model from HuggingFace ({REPO_ID}/{MODEL_FILENAME})...")
     try:
-        downloaded_path = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME, token=True)
+        downloaded_path = hf_hub_download(repo_id=REPO_ID, filename=MODEL_FILENAME, token=token)
         import shutil
         shutil.copy(downloaded_path, model_path)
         print(f"Model downloaded to: {model_path}")
@@ -46,8 +48,9 @@ def download_model(cache_dir=MODEL_CACHE_DIR):
         print(f"\nError: Could not download model from HuggingFace")
         print(f"Reason: {e}")
         print("\nTo fix:")
-        print("1. Login to HuggingFace: huggingface-cli login")
-        print("2. Make sure you have access to jil202/nexus_imaging")
+        print(f"1. Accept the model agreement at https://huggingface.co/{REPO_ID}")
+        print("2. Set your HuggingFace token: export HF_TOKEN=<your_token>")
+        print("   (or login via CLI: huggingface-cli login)")
         raise
 
 

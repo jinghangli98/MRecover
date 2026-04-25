@@ -88,7 +88,3 @@ huggingface-cli login
 **Input:** T1w MPRAGE NIfTI (`.nii` / `.nii.gz`) at any isotropic resolution (e.g. 0.55–1 mm), or a DICOM series directory.
 
 **Output:** Synthetic T2 TSE NIfTI or DICOM. By default the output is resampled to 0.375 mm in-plane with the through-plane spacing preserved from the input.
-
-## License
-
-MIT
