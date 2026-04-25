@@ -16,6 +16,14 @@ pip install -e .
 pip install mrecover
 ```
 
+## Model
+The models are hosted at https://huggingface.co/jil202/MRcover. You will need to agree to share your contact information to access the models.
+The model will be automatically downloaded from HuggingFace on first use. You will need to authenticate:
+
+```bash
+huggingface-cli login
+```
+
 ## Quick Start
 
 ### CLI
@@ -72,14 +80,6 @@ print(volume.shape)  # (X, Y, Z)
 | `--tse-registered` | off | Skip resampling (input already in TSE space) |
 | `--model` | None | Path to custom model checkpoint |
 | `--seed` | 42 | Random seed |
-
-## Model
-
-The model is automatically downloaded from HuggingFace on first use. You will need to authenticate:
-
-```bash
-huggingface-cli login
-```
 
 ## Input / Output
 
