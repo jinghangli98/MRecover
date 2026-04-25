@@ -9,7 +9,7 @@ from pathlib import Path
 import torch
 import numpy as np
 
-from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference
+from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference, DirectInference, direct_inference
 from .models import load_model
 from .utils import (
     detect_input_format,
@@ -49,6 +49,12 @@ Examples:
 
     parser.add_argument("--model", default=None,
                         help="Path to model checkpoint (default: auto-download from HuggingFace)")
+
+    model_group = parser.add_mutually_exclusive_group()
+    model_group.add_argument("--baseline", action="store_true", default=False,
+                             help="Use baseline UNet model instead of flow matching")
+    model_group.add_argument("--pix2pix", action="store_true", default=False,
+                             help="Use pix2pix generator model instead of flow matching")
     parser.add_argument("--steps", type=int, default=1,
                         help="Number of ODE sampling steps (default: 1; more = higher quality)")
     parser.add_argument("--device", default="cuda",
@@ -98,16 +104,28 @@ def main():
     device = torch.device(args.device if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    if args.baseline:
+        model_type = "baseline"
+    elif args.pix2pix:
+        model_type = "pix2pix"
+    else:
+        model_type = "flowmatching"
+
     try:
         model = load_model(
             model_path=args.model,
+            model_type=model_type,
             fp16=not args.no_fp16,
             compile_model=not args.no_compile,
         )
-        flow_matcher = AutoregressiveFlowMatcher(model)
 
-        print("Running T1w to T2 TSE translation...")
-        _run_translation(args, flow_matcher, device)
+        if model_type == "flowmatching":
+            inferencer = AutoregressiveFlowMatcher(model)
+        else:
+            inferencer = DirectInference(model)
+
+        print(f"Running T1w to T2 TSE translation with {model_type} model...")
+        _run_translation(args, inferencer, device)
 
         print(f"Done. Output saved to: {args.output}")
 
@@ -118,7 +136,7 @@ def main():
         sys.exit(1)
 
 
-def _run_translation(args, flow_matcher, device):
+def _run_translation(args, inferencer, device):
     """Execute the full T1w→T2 TSE translation pipeline."""
     volume_xyz, slice_axis, affine, header = load_tse_input_data(args.input, args)
 
@@ -131,7 +149,10 @@ def _run_translation(args, flow_matcher, device):
     mprage_padded = volume_xyz_padded.permute(*perm_to_nhw)
 
     start = time.time()
-    generated_volume, _ = tse_flow_matching_inference(flow_matcher, mprage_padded, args, device)
+    if isinstance(inferencer, AutoregressiveFlowMatcher):
+        generated_volume, _ = tse_flow_matching_inference(inferencer, mprage_padded, args, device)
+    else:
+        generated_volume, _ = direct_inference(inferencer, mprage_padded, args, device)
     elapsed = time.time() - start
     print(f"Translation completed in {elapsed:.2f}s ({elapsed / len(mprage_padded):.2f}s/slice)")
 

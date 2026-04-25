@@ -233,7 +233,11 @@ def save_results(generated_volume, output_path, args, affine=None, header=None):
         affine: (4, 4) affine matrix
         header: NIfTI header (optional)
     """
-    volume_data = np.clip(generated_volume / np.max(generated_volume) * 256, 0, 255).astype(np.uint16)
+    max_val = np.nanmax(generated_volume)
+    if max_val > 0:
+        volume_data = np.clip(generated_volume / max_val * 65535, 0, 65535).astype(np.uint16)
+    else:
+        volume_data = np.zeros(generated_volume.shape, dtype=np.uint16)
 
     if args.format == "nifti":
         os.makedirs(Path(output_path).parent, exist_ok=True)
