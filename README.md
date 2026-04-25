@@ -20,9 +20,6 @@ pip install mrecover torch --index-url https://download.pytorch.org/whl/cu121
 ### CLI
 
 ```bash
-# Basic T1w to T2 TSE translation
-mrecover -i T1.nii.gz -o T2tse.nii.gz
-
 # Force anisotropic TSE-like spacing (0.375 × 1.5 × 0.375 mm)
 mrecover -i T1.nii.gz -o T2tse.nii.gz --tse-through-plane 1.5
 

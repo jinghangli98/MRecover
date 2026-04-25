@@ -27,9 +27,6 @@ def build_parser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Basic T1w to T2 TSE translation
-  mrecover -i T1.nii.gz -o T2tse.nii.gz
-
   # Force through-plane resolution (fully anisotropic TSE-like spacing)
   mrecover -i T1.nii.gz -o T2tse.nii.gz --tse-through-plane 1.5
 
