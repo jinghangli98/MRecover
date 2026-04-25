@@ -4,14 +4,14 @@ AI-powered T1w to T2 TSE MRI translation using autoregressive flow matching.
 
 MRecover synthesizes T2-weighted turbo spin echo (TSE) images from T1-weighted (MPRAGE) brain MRI, enabling recovery of T2 TSE contrast without re-scanning.
 
-## Installation
+## Installation from github
 
 ```bash
 git clone https://github.com/jinghangli98/MRecover.git
 cd MRecover
 pip install -e .
 ```
-
+## Installation from PyPI
 ```bash
 pip install mrecover
 ```
