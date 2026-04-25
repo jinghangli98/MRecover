@@ -16,6 +16,28 @@ MODELS = {
 }
 
 
+def resolve_device(device=None):
+    """Resolve a user-requested torch device with portable fallbacks."""
+    if device is None or str(device).lower() == "auto":
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+
+    requested = torch.device(device)
+    if requested.type == "cuda" and not torch.cuda.is_available():
+        if torch.backends.mps.is_available():
+            print("CUDA is not available; using MPS instead.")
+            return torch.device("mps")
+        print("CUDA is not available; using CPU instead.")
+        return torch.device("cpu")
+    if requested.type == "mps" and not torch.backends.mps.is_available():
+        print("MPS is not available; using CPU instead.")
+        return torch.device("cpu")
+    return requested
+
+
 class DownloadProgressBar(tqdm):
     def update_to(self, b=1, bsize=1, tsize=None):
         if tsize is not None:
@@ -71,8 +93,8 @@ def load_model(model_path=None, model_type="flowmatching", device="cuda", fp16=F
     Args:
         model_path: Path to checkpoint. If None, auto-downloads.
         model_type: one of 'flowmatching', 'baseline', 'pix2pix'
-        device: 'cuda' or 'cpu'
-        fp16: Use half precision (faster on GPU, requires CUDA)
+        device: 'auto', 'cuda', 'mps', or 'cpu'
+        fp16: Use reduced precision (faster on CUDA GPUs only)
         compile_model: Apply torch.compile for faster inference
 
     Returns:
@@ -83,7 +105,7 @@ def load_model(model_path=None, model_type="flowmatching", device="cuda", fp16=F
     elif not os.path.exists(model_path):
         raise FileNotFoundError(f"Model not found at: {model_path}")
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = resolve_device(device)
     print(f"Loading T2 TSE model from {model_path}")
 
     model = DiffusionModelUNet(
@@ -106,12 +128,16 @@ def load_model(model_path=None, model_type="flowmatching", device="cuda", fp16=F
     model.to(device)
     model.eval()
 
-    if fp16:
+    if fp16 and device.type == "cuda":
         model = model.bfloat16()
+    elif fp16 and device.type != "cuda":
+        print(f"Reduced precision is only enabled on CUDA; using float32 on {device.type}.")
 
-    if compile_model:
+    if compile_model and device.type == "cuda":
         print("Compiling model for faster inference...")
         model = torch.compile(model, backend="inductor")
+    elif compile_model and device.type != "cuda":
+        print(f"torch.compile is disabled on {device.type}; using eager mode for compatibility.")
 
     print("Model loaded successfully!")
     return model

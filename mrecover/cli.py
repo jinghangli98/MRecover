@@ -10,7 +10,7 @@ import torch
 import numpy as np
 
 from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference, DirectInference, direct_inference
-from .models import load_model
+from .models import load_model, resolve_device
 from .utils import (
     detect_input_format,
     load_tse_input_data,
@@ -54,8 +54,8 @@ Examples:
                              help="Use pix2pix generator model instead of flow matching")
     parser.add_argument("--steps", type=int, default=1,
                         help="Number of ODE sampling steps (default: 1; more = higher quality)")
-    parser.add_argument("--device", default="cuda",
-                        help="Device: cuda or cpu (default: cuda)")
+    parser.add_argument("--device", default="auto",
+                        help="Device: auto, cuda, mps, or cpu (default: auto)")
     parser.add_argument("--format", default=None, choices=["nifti", "dcm"],
                         help="Input format (default: auto-detect)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
@@ -98,7 +98,7 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device = resolve_device(args.device)
     print(f"Using device: {device}")
 
     if args.baseline:
@@ -112,6 +112,7 @@ def main():
         model = load_model(
             model_path=args.model,
             model_type=model_type,
+            device=device,
             fp16=not args.no_fp16,
             compile_model=not args.no_compile,
         )

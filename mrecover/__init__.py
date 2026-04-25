@@ -10,7 +10,7 @@ import torch
 import numpy as np
 
 from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference
-from .models import load_model
+from .models import load_model, resolve_device
 from .utils import (
     detect_input_format,
     load_tse_input_data,
@@ -65,10 +65,7 @@ def translate(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    if device is None:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    else:
-        device = torch.device(device)
+    device = resolve_device(device)
 
     input_format = detect_input_format(str(input_path))
 
@@ -86,7 +83,12 @@ def translate(
         tse=True,
     )
 
-    model = load_model(model_path=model_path, fp16=fp16, compile_model=compile_model)
+    model = load_model(
+        model_path=model_path,
+        device=device,
+        fp16=fp16,
+        compile_model=compile_model,
+    )
     flow_matcher = AutoregressiveFlowMatcher(model)
 
     volume_xyz, slice_axis, affine, header = load_tse_input_data(str(input_path), args)
@@ -117,4 +119,5 @@ __all__ = [
     "AutoregressiveFlowMatcher",
     "tse_flow_matching_inference",
     "load_model",
+    "resolve_device",
 ]
