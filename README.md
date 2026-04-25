@@ -37,9 +37,6 @@ mrecover -i T1_registered.nii.gz -o T2tse.nii.gz --tse-registered
 
 # Higher quality with more ODE steps
 mrecover -i T1.nii.gz -o T2tse.nii.gz --steps 10
-
-# Use RK4 integration instead of Euler
-mrecover -i T1.nii.gz -o T2tse.nii.gz --rk4
 ```
 
 ### Python API
