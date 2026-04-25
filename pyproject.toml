@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mrecover"
+version = "0.1.0"
+description = "AI-powered T1w to T2 TSE MRI translation using flow matching"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Jinghang Li", email = "jinghang.li@pitt.edu"}
+]
+keywords = ["mri", "medical-imaging", "ai", "flow-matching", "t2-tse", "translation", "brain"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.20.0",
+    "nibabel>=3.0.0",
+    "monai>=1.0.0",
+    "torchio>=0.18.0",
+    "tqdm>=4.60.0",
+    "SimpleITK>=2.0.0",
+    "pydicom>=2.0.0",
+    "huggingface_hub>=0.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jinghangli98/MRecover"
+"Bug Tracker" = "https://github.com/jinghangli98/MRecover/issues"
+
+[project.scripts]
+mrecover = "mrecover.cli:main"
+
+[tool.setuptools]
+packages = ["mrecover"]
