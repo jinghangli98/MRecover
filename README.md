@@ -7,12 +7,13 @@ MRecover synthesizes T2-weighted turbo spin echo (TSE) images from T1-weighted (
 ## Installation
 
 ```bash
-pip install mrecover
+git clone https://github.com/jinghangli98/MRecover.git
+cd MRecover
+pip install -e .
 ```
 
-For GPU acceleration (recommended):
 ```bash
-pip install mrecover torch --index-url https://download.pytorch.org/whl/cu121
+pip install mrecover
 ```
 
 ## Quick Start
