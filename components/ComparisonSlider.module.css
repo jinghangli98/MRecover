@@ -1,0 +1,137 @@
+.figure {
+  margin: 0;
+}
+
+.slider {
+  --position: 54%;
+  background: var(--image-shell);
+  border: 1px solid var(--image-shell-border);
+  border-radius: 1.65rem;
+  cursor: col-resize;
+  overflow: hidden;
+  padding: 0.9rem;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.image {
+  -webkit-user-drag: none;
+  border-radius: 1rem;
+  display: block;
+  height: auto;
+  object-fit: cover;
+  pointer-events: none;
+  width: 100%;
+}
+
+.overlay {
+  clip-path: inset(0 calc(100% - var(--position)) 0 0);
+  inset: 0.9rem;
+  position: absolute;
+}
+
+.divider {
+  bottom: 0.9rem;
+  left: var(--position);
+  pointer-events: none;
+  position: absolute;
+  top: 0.9rem;
+  transform: translateX(-50%);
+  width: 0;
+}
+
+.divider::before {
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent);
+  content: "";
+  height: 100%;
+  left: 50%;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 2px;
+}
+
+.handle {
+  background: var(--paper);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--ink) 16%, transparent);
+  height: 2.8rem;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 1.2rem;
+}
+
+.handle::before,
+.handle::after {
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+  content: "";
+  height: 0.82rem;
+  position: absolute;
+  top: 50%;
+  width: 1px;
+}
+
+.handle::before {
+  left: 0.42rem;
+  transform: translateY(-50%);
+}
+
+.handle::after {
+  right: 0.42rem;
+  transform: translateY(-50%);
+}
+
+.badges {
+  display: flex;
+  justify-content: space-between;
+  left: 1.45rem;
+  pointer-events: none;
+  position: absolute;
+  right: 1.45rem;
+  top: 1.45rem;
+}
+
+.badge {
+  backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 0.55rem 0.8rem;
+  text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .slider {
+    padding: 0.65rem;
+  }
+
+  .overlay {
+    inset: 0.65rem;
+  }
+
+  .divider {
+    bottom: 0.65rem;
+    top: 0.65rem;
+  }
+
+  .badges {
+    left: 1rem;
+    right: 1rem;
+    top: 1rem;
+  }
+
+  .badge {
+    font-size: 0.62rem;
+    padding: 0.45rem 0.62rem;
+  }
+}
