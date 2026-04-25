@@ -65,6 +65,59 @@ class AutoregressiveFlowMatcher(nn.Module):
         return x
 
 
+class DirectInference(nn.Module):
+    """Single-pass inference for baseline and pix2pix models."""
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    @torch.no_grad()
+    def sample(self, condition, prev_slice, device="cuda"):
+        zeros = torch.zeros_like(condition)
+        model_input = torch.cat([zeros, condition, prev_slice], dim=1)
+        timesteps = torch.zeros(condition.shape[0], dtype=torch.long, device=device)
+        return self.model(model_input, timesteps)
+
+
+def direct_inference(inferencer, mprage_volume, args, device):
+    """Slice-by-slice inference for baseline/pix2pix models.
+
+    Args:
+        inferencer: DirectInference instance
+        mprage_volume: Tensor (num_slices, H, W)
+        args: Namespace with .no_fp16, .no_auto
+        device: torch.device
+
+    Returns:
+        generated_volume: Tensor (num_slices, H, W)
+        mprage_volume: Input tensor (returned for convenience)
+    """
+    num_slices, height, width = mprage_volume.shape
+    generated_volume = torch.zeros_like(mprage_volume)
+    prev_slice = torch.zeros((1, 1, height, width), device=device)
+
+    use_fp16 = not args.no_fp16
+    autoregressive = not args.no_auto
+
+    print(f"Generating {num_slices} slices...")
+
+    for slice_idx in tqdm(range(num_slices), desc="Generating slices"):
+        mprage_slice = mprage_volume[slice_idx : slice_idx + 1].to(device).unsqueeze(0)
+
+        with torch.no_grad():
+            if use_fp16 and device.type == "cuda":
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=True):
+                    gen = inferencer.sample(mprage_slice, prev_slice, device)
+            else:
+                gen = inferencer.sample(mprage_slice, prev_slice, device)
+
+            generated_volume[slice_idx] = gen.squeeze(0).squeeze(0).float().cpu()
+            prev_slice = gen.detach().float() if autoregressive else torch.zeros((1, 1, height, width), device=device)
+
+    return generated_volume, mprage_volume
+
+
 def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
     """Slice-by-slice autoregressive flow matching for T1w→T2 TSE translation.
 
@@ -93,7 +146,7 @@ def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
 
         with torch.no_grad():
             if use_fp16 and device.type == "cuda":
-                with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=True):
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=True):
                     gen = (
                         flow_matcher.sample(mprage_slice, prev_slice, args.steps, device)
                         if use_euler
