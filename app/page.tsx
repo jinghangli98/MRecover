@@ -11,7 +11,7 @@ import t1CaseTwo from "../src/assets/t1_cor_2.png";
 import generatedCaseTwo from "../src/assets/t2w_cor_2.png";
 import targetCaseTwo from "../src/assets/tse_cor_2.png";
 
-const huggingFaceModelUrl = "https://huggingface.co/jil202/MRcover";
+const huggingFaceModelUrl = "https://huggingface.co/jil202/MRecover";
 
 const cases = {
   en: [

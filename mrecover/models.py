@@ -6,7 +6,7 @@ from pathlib import Path
 from tqdm import tqdm
 from monai.networks.nets import DiffusionModelUNet
 
-REPO_ID = "jil202/MRcover"
+REPO_ID = "jil202/MRecover"
 MODEL_CACHE_DIR = Path.home() / ".cache" / "mrecover"
 
 MODELS = {
