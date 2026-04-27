@@ -73,79 +73,83 @@
   position: fixed;
   right: 2rem;
   top: 1.5rem;
-  width: 7.6rem;
+  width: 3.55rem;
   z-index: 3;
 }
 
-.themeSwitch {
-  appearance: none;
+.githubLink {
+  align-items: center;
+  align-self: center;
   background: transparent;
   border: none;
-  cursor: pointer;
+  color: var(--ink);
+  display: inline-flex;
+  height: 2.2rem;
+  justify-content: center;
   padding: 0;
-  width: 100%;
+  text-decoration: none;
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+  width: 2.2rem;
 }
 
-.themeSwitchTrack {
+.githubLink:hover {
+  color: #b58d50;
+  transform: translateY(-1px);
+}
+
+.githubIcon {
+  display: block;
+  fill: currentColor;
+  height: 1.55rem;
+  width: 1.55rem;
+}
+
+.themeSwitch {
   align-items: center;
+  appearance: none;
   backdrop-filter: blur(18px);
   background: var(--panel);
   border: 1px solid var(--panel-border);
   border-radius: 999px;
   box-shadow: var(--shadow);
-  display: flex;
-  gap: 0.42rem;
-  justify-content: space-between;
-  min-height: 2.35rem;
-  padding: 0.22rem 0.28rem 0.22rem 0.58rem;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--ui-font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  height: 3.55rem;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 0.2rem;
+  text-transform: uppercase;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
   width: 100%;
 }
 
-.themeSwitchLabel {
-  color: var(--muted);
-  flex: 1;
-  font-family: var(--ui-font);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.themeSwitchKnob,
-.themeSwitchKnobActive {
-  background: #12161f;
-  border-radius: 999px;
+.themeIcon {
   display: block;
-  flex: 0 0 auto;
-  height: 1.05rem;
-  position: relative;
-  transition:
-    background-color 180ms ease,
-    transform 180ms ease;
-  width: 1.86rem;
+  fill: currentColor;
+  height: 1.35rem;
+  width: 1.35rem;
 }
 
-.themeSwitchKnob::before,
-.themeSwitchKnobActive::before {
-  background: #f7f3ea;
-  border-radius: 999px;
-  content: "";
-  height: 0.72rem;
-  left: 0.17rem;
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  transition: transform 180ms ease;
-  width: 0.72rem;
+.themeSwitch:hover,
+.languageSwitch:hover {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border-color: rgba(18, 22, 31, 0.18);
+  transform: translateY(-1px);
 }
 
-.themeSwitchKnobActive {
-  background: #cba467;
-}
-
-.themeSwitchKnobActive::before {
-  transform: translate(0.8rem, -50%);
+[data-theme="dark"] .themeSwitch:hover,
+[data-theme="dark"] .languageSwitch:hover {
+  border-color: rgba(243, 237, 224, 0.18);
 }
 
 .languageSwitch {
@@ -158,27 +162,17 @@
   color: var(--ink);
   cursor: pointer;
   font-family: var(--ui-font);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  height: 2.35rem;
-  letter-spacing: 0.08em;
+  height: 3.55rem;
+  letter-spacing: 0.04em;
   line-height: 1;
-  padding: 0.5rem 0.68rem;
+  padding: 0.2rem;
   transition:
     transform 180ms ease,
     border-color 180ms ease,
     background-color 180ms ease;
   width: 100%;
-}
-
-.languageSwitch:hover {
-  background: color-mix(in srgb, var(--panel) 88%, transparent);
-  border-color: rgba(18, 22, 31, 0.18);
-  transform: translateY(-1px);
-}
-
-[data-theme="dark"] .languageSwitch:hover {
-  border-color: rgba(243, 237, 224, 0.18);
 }
 
 .kicker,
@@ -319,7 +313,6 @@
   border-color: rgba(243, 237, 224, 0.22);
 }
 
-[data-language="zh"] .themeSwitchLabel,
 [data-language="zh"] .kicker,
 [data-language="zh"] .sectionEyebrow,
 [data-language="zh"] .caseEyebrow,
@@ -521,43 +514,37 @@
   }
 
   .controlStack {
-    gap: 0.36rem;
+    gap: 0.34rem;
     right: 1rem;
     top: 1rem;
-    width: 6.8rem;
+    width: 3rem;
   }
 
-  .themeSwitchTrack,
+  .themeSwitch,
   .languageSwitch {
-    height: 2.2rem;
-    min-height: 2.2rem;
+    height: 3rem;
+    min-height: 3rem;
   }
 
-  .themeSwitchTrack {
-    gap: 0.34rem;
-    padding: 0.2rem 0.25rem 0.2rem 0.52rem;
+  .githubLink {
+    height: 1.9rem;
+    width: 1.9rem;
   }
 
-  .themeSwitchLabel,
+  .githubIcon {
+    height: 1.28rem;
+    width: 1.28rem;
+  }
+
+  .themeSwitch,
   .languageSwitch {
-    font-size: 0.58rem;
-    letter-spacing: 0.06em;
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
   }
 
-  .themeSwitchKnob,
-  .themeSwitchKnobActive {
-    height: 0.98rem;
-    width: 1.72rem;
-  }
-
-  .themeSwitchKnob::before,
-  .themeSwitchKnobActive::before {
-    height: 0.64rem;
-    width: 0.64rem;
-  }
-
-  .themeSwitchKnobActive::before {
-    transform: translate(0.74rem, -50%);
+  .themeIcon {
+    height: 1.18rem;
+    width: 1.18rem;
   }
 
   .caseCard,

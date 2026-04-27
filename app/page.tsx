@@ -12,6 +12,7 @@ import generatedCaseTwo from "../src/assets/t2w_cor_2.png";
 import targetCaseTwo from "../src/assets/tse_cor_2.png";
 
 const huggingFaceModelUrl = "https://huggingface.co/jil202/MRecover";
+const githubRepoUrl = "https://github.com/jinghangli98/MRecover";
 
 const cases = {
   en: [
@@ -68,6 +69,7 @@ const copy = {
   en: {
     themeSwitchLabel: { light: "Night", dark: "Day" },
     languageButton: "中",
+    githubLabel: "Open MRecover on GitHub",
     proofIntro: "Compare synthesized T2w-TSE directly against the as-acquired reference — generated from T1w alone.",
     scientificContext: "Scientific context",
     scientificTitle: "Designed to recover motion corrupted T2w TSE data",
@@ -88,6 +90,7 @@ const copy = {
   zh: {
     themeSwitchLabel: { light: "夜", dark: "日" },
     languageButton: "En",
+    githubLabel: "在 GitHub 打开 MRecover",
     proofIntro: "展示仅基于 T1w 输入合成的 T2w-TSE 图像，并与实际采集的 TSE 参考图像进行逐例对照。",
     scientificContext: "临床背景",
     scientificTitle: "面向受运动伪影影响的 T2w-TSE 重建",
@@ -147,16 +150,38 @@ export default function Home() {
     <main className={styles.page} data-language={language} data-theme={theme} lang={language === "zh" ? "zh-CN" : "en"}>
       <div className={styles.backgroundGlow} />
       <div className={styles.controlStack}>
+        <a
+          aria-label={currentCopy.githubLabel}
+          className={styles.githubLink}
+          href={githubRepoUrl}
+          rel="noreferrer"
+          target="_blank"
+          title={currentCopy.githubLabel}
+        >
+          <svg aria-hidden="true" className={styles.githubIcon} viewBox="0 0 24 24">
+            <path
+              clipRule="evenodd"
+              d="M12 2C6.48 2 2 6.58 2 12.22c0 4.52 2.87 8.35 6.84 9.7.5.09.68-.22.68-.49 0-.24-.01-1.04-.01-1.89-2.78.62-3.37-1.22-3.37-1.22-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.56 2.36 1.11 2.93.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.37 9.37 0 0 1 12 6.93c.85 0 1.7.12 2.5.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.8 0 .27.18.59.69.49A10.13 10.13 0 0 0 22 12.22C22 6.58 17.52 2 12 2Z"
+              fillRule="evenodd"
+            />
+          </svg>
+        </a>
+
         <button
           aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           className={styles.themeSwitch}
           onClick={toggleTheme}
           type="button"
         >
-          <span className={styles.themeSwitchTrack}>
-            <span className={styles.themeSwitchLabel}>{currentCopy.themeSwitchLabel[theme]}</span>
-            <span className={theme === "dark" ? styles.themeSwitchKnobActive : styles.themeSwitchKnob} />
-          </span>
+          {theme === "light" ? (
+            <svg aria-hidden="true" className={styles.themeIcon} viewBox="0 0 24 24">
+              <path d="M21 13.06A8.5 8.5 0 0 1 10.94 3a7 7 0 1 0 10.07 10.07Z" />
+            </svg>
+          ) : (
+            <svg aria-hidden="true" className={styles.themeIcon} viewBox="0 0 24 24">
+              <path d="M12 4.5a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H13a1 1 0 0 1-1-1Zm0 14a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H13a1 1 0 0 1-1-1ZM4.5 12a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2H5.5a1 1 0 0 1-1-1Zm14 0a1 1 0 0 1 1-1h.01a1 1 0 1 1 0 2h-.01a1 1 0 0 1-1-1Zm-11.6-5.1a1 1 0 0 1 1.41 0l.01.01a1 1 0 1 1-1.42 1.41l-.01-.01a1 1 0 0 1 .01-1.41Zm8.78 8.78a1 1 0 0 1 1.41 0l.01.01a1 1 0 1 1-1.42 1.41l-.01-.01a1 1 0 0 1 .01-1.41Zm1.42-8.78a1 1 0 0 1 0 1.41l-.01.01a1 1 0 1 1-1.41-1.42l.01-.01a1 1 0 0 1 1.41.01ZM8.32 15.68a1 1 0 0 1 0 1.41l-.01.01a1 1 0 1 1-1.41-1.42l.01-.01a1 1 0 0 1 1.41.01ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+            </svg>
+          )}
         </button>
 
         <button
