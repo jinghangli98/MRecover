@@ -233,15 +233,24 @@ def save_results(generated_volume, output_path, args, affine=None, header=None):
         affine: (4, 4) affine matrix
         header: NIfTI header (optional)
     """
-    max_val = np.nanmax(generated_volume)
-    if max_val > 0:
-        volume_data = np.clip(generated_volume / max_val * 65535, 0, 65535).astype(np.uint16)
+    finite_mask = np.isfinite(generated_volume)
+    if finite_mask.any():
+        finite_values = generated_volume[finite_mask]
+        min_val = np.min(finite_values)
+        max_val = np.max(finite_values)
+        if max_val > min_val:
+            scaled_volume = np.zeros(generated_volume.shape, dtype=np.float32)
+            scaled_volume[finite_mask] = (finite_values - min_val) / (max_val - min_val)
+            volume_data = np.clip(scaled_volume * 255, 0, 255).astype(np.uint8)
+        else:
+            volume_data = np.zeros(generated_volume.shape, dtype=np.uint8)
     else:
-        volume_data = np.zeros(generated_volume.shape, dtype=np.uint16)
+        volume_data = np.zeros(generated_volume.shape, dtype=np.uint8)
 
     if args.format == "nifti":
         os.makedirs(Path(output_path).parent, exist_ok=True)
         nii_img = nib.Nifti1Image(volume_data, affine, header) if header is not None else nib.Nifti1Image(volume_data, affine)
+        nii_img.set_data_dtype(np.uint8)
         nib.save(nii_img, output_path)
         print(f"Saved NIfTI: {output_path}")
 
