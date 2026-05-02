@@ -36,7 +36,7 @@ def translate(
     tse_through_plane=None,
     tse_registered=False,
     whole_brain=False,
-    hippo_margin=4,
+    hippo_margin=5.0,
     seed=42,
 ):
     """Translate a T1w MRI volume to synthetic T2 TSE contrast.
@@ -56,8 +56,8 @@ def translate(
         tse_registered: Set True if input is already in TSE voxel space.
         whole_brain: If True, run inference on every slice. If False (default),
             localize the hippocampus and only synthesise slices in that region.
-        hippo_margin: Slices added on each side of the hippocampus region
-            (default 4). Ignored when ``whole_brain=True``.
+        hippo_margin: Margin in millimetres added on each side of the
+            hippocampus region (default 5.0). Ignored when ``whole_brain=True``.
         seed: Random seed for reproducibility (default 42).
 
     Returns:
@@ -118,7 +118,7 @@ def translate(
                 target_shape=tuple(volume_xyz.shape),
                 slice_axis=slice_axis,
                 pad_info=pad_info,
-                margin=hippo_margin,
+                margin_mm=hippo_margin,
             )
         except Exception as e:
             print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")

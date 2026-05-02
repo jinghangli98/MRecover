@@ -11,14 +11,14 @@ def localize_hippocampus_slices(
     target_shape,
     slice_axis,
     pad_info,
-    margin=4,
+    margin_mm=5.0,
 ):
     """Identify slice indices containing hippocampus in the resampled+padded volume.
 
     Runs the hippocampus segmentation on the original input, resamples the
     combined L+R mask onto the same grid as the T1w volume that will be fed to
     the translation model, applies the same padding, and returns a contiguous
-    range of slice indices (extended by `margin` on each side) along
+    range of slice indices (extended by `margin_mm` mm on each side) along
     `slice_axis` that contain hippocampus.
 
     Args:
@@ -27,7 +27,8 @@ def localize_hippocampus_slices(
         target_shape: (X, Y, Z) shape of the resampled T1w volume (pre-padding).
         slice_axis: Axis that the inference loop iterates over after permutation.
         pad_info: dict returned by `pad_volume_to_divisible` for the T1w volume.
-        margin: Number of extra slices to keep on each side of the hippocampus.
+        margin_mm: Physical margin in millimetres on each side of the hippocampus.
+            Converted to slices using the spacing of `slice_axis` in `target_affine`.
 
     Returns:
         list[int] of slice indices, or None if no hippocampus was detected.
@@ -67,12 +68,15 @@ def localize_hippocampus_slices(
         print("Warning: no hippocampus detected; falling back to whole-brain inference.")
         return None
 
-    lo = max(0, int(nonzero.min()) - margin)
-    hi = min(total, int(nonzero.max()) + margin + 1)
+    spacing_mm = float(np.linalg.norm(np.asarray(target_affine)[:3, slice_axis]))
+    margin_slices = max(0, int(round(float(margin_mm) / spacing_mm))) if spacing_mm > 0 else 0
+
+    lo = max(0, int(nonzero.min()) - margin_slices)
+    hi = min(total, int(nonzero.max()) + margin_slices + 1)
     indices = list(range(lo, hi))
     print(
         f"Hippocampus localized along axis {slice_axis}: "
         f"slices [{lo}, {hi}) — {len(indices)} of {total} "
-        f"(margin={margin})"
+        f"(margin={margin_mm:.1f} mm = {margin_slices} slices @ {spacing_mm:.3f} mm/slice)"
     )
     return indices

@@ -73,7 +73,7 @@ mrecover -i T1.nii.gz -o T2tse.nii.gz --steps 10
 
 ### Hippocampus localization (default)
 
-By default MRecover localizes the hippocampus on the input T1w using a lightweight 3D segmentation model and only synthesises slices that contain it (plus a 4-slice margin on each side for autoregressive warm-up). The saved NIfTI is cropped to that slab and its affine is shifted so it overlays the input T1w in any viewer with no spatial offset. Pass `--whole-brain` to skip localization and synthesise every slice; tune the margin with `--hippo-margin N`.
+By default MRecover localizes the hippocampus on the input T1w using a lightweight 3D segmentation model and only synthesises slices that contain it (plus a 10 mm margin on each side for autoregressive warm-up). The margin is specified in millimetres so it is robust across through-plane resolutions. The saved NIfTI is cropped to that slab and its affine is shifted so it overlays the input T1w in any viewer with no spatial offset. Pass `--whole-brain` to skip localization and synthesise every slice; tune the margin with `--hippo-margin <mm>`.
 
 ### Python API
 
@@ -91,7 +91,7 @@ mrecover.translate(
     tse_through_plane=1.5,   # resample through-plane to 1.5 mm
     tse_inplane=0.375,        # target in-plane resolution
     whole_brain=False,        # default: localize hippocampus and crop output
-    hippo_margin=4,           # extra slices on each side of the hippocampus
+    hippo_margin=10.0,         # margin in mm on each side of the hippocampus
 )
 
 # Returns the generated volume as a numpy array
@@ -114,7 +114,7 @@ print(volume.shape)  # (X, Y, Z)
 | `--tse-through-plane` | None | Through-plane resampling target (mm) |
 | `--tse-registered` | off | Skip resampling (input already in TSE space) |
 | `--whole-brain` | off | Synthesise every slice. Default: localize hippocampus and synthesise only that slab. |
-| `--hippo-margin` | 4 | Extra slices on each side of the localized hippocampus region. Ignored with `--whole-brain`. |
+| `--hippo-margin` | 10.0 | Margin in millimetres on each side of the localized hippocampus region. Ignored with `--whole-brain`. |
 | `--model` | None | Path to custom model checkpoint |
 | `--seed` | 42 | Random seed |
 

@@ -80,9 +80,9 @@ Examples:
     parser.add_argument("--whole-brain", action="store_true", default=False,
                         help="Run inference on every slice. Default: localize hippocampus first "
                              "and only synthesise slices in that region.")
-    parser.add_argument("--hippo-margin", type=int, default=4,
-                        help="Slices added on each side of the localized hippocampus region "
-                             "(default: 4). Ignored with --whole-brain.")
+    parser.add_argument("--hippo-margin", type=float, default=10.0,
+                        help="Margin in millimetres added on each side of the localized "
+                             "hippocampus region (default: 10.0). Ignored with --whole-brain.")
 
     return parser
 
@@ -167,7 +167,7 @@ def _run_translation(args, inferencer, device):
                     target_shape=tuple(volume_xyz.shape),
                     slice_axis=slice_axis,
                     pad_info=pad_info,
-                    margin=args.hippo_margin,
+                    margin_mm=args.hippo_margin,
                 )
             except Exception as e:
                 print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
