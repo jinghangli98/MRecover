@@ -16,6 +16,7 @@ from .utils import (
     load_tse_input_data,
     pad_volume_to_divisible,
     unpad_volume,
+    crop_to_slice_range,
     save_results,
 )
 
@@ -75,6 +76,13 @@ Examples:
                         help="Target in-plane resolution in mm for native T1w (default: 0.375)")
     parser.add_argument("--tse-through-plane", type=float, default=None, dest="tse_through_plane",
                         help="Through-plane resolution in mm (e.g. 1.5); default: keep input spacing")
+
+    parser.add_argument("--whole-brain", action="store_true", default=False,
+                        help="Run inference on every slice. Default: localize hippocampus first "
+                             "and only synthesise slices in that region.")
+    parser.add_argument("--hippo-margin", type=int, default=4,
+                        help="Slices added on each side of the localized hippocampus region "
+                             "(default: 4). Ignored with --whole-brain.")
 
     return parser
 
@@ -146,16 +154,50 @@ def _run_translation(args, inferencer, device):
     inv_perm = tuple(perm_to_nhw.index(a) for a in (0, 1, 2))
     mprage_padded = volume_xyz_padded.permute(*perm_to_nhw)
 
+    slice_indices = None
+    if not args.whole_brain:
+        if args.format != "nifti":
+            print("Hippocampus localization requires NIfTI input; falling back to whole-brain.")
+        else:
+            try:
+                from .hippo_localizer import localize_hippocampus_slices
+                slice_indices = localize_hippocampus_slices(
+                    args.input,
+                    target_affine=affine,
+                    target_shape=tuple(volume_xyz.shape),
+                    slice_axis=slice_axis,
+                    pad_info=pad_info,
+                    margin=args.hippo_margin,
+                )
+            except Exception as e:
+                print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
+                slice_indices = None
+
     start = time.time()
     if isinstance(inferencer, AutoregressiveFlowMatcher):
-        generated_volume, _ = tse_flow_matching_inference(inferencer, mprage_padded, args, device)
+        generated_volume, _ = tse_flow_matching_inference(
+            inferencer, mprage_padded, args, device, slice_indices=slice_indices,
+        )
     else:
-        generated_volume, _ = direct_inference(inferencer, mprage_padded, args, device)
+        generated_volume, _ = direct_inference(
+            inferencer, mprage_padded, args, device, slice_indices=slice_indices,
+        )
     elapsed = time.time() - start
-    print(f"Translation completed in {elapsed:.2f}s ({elapsed / len(mprage_padded):.2f}s/slice)")
+    n_processed = len(slice_indices) if slice_indices is not None else len(mprage_padded)
+    print(f"Translation completed in {elapsed:.2f}s ({elapsed / max(n_processed, 1):.2f}s/slice)")
 
     generated_xyz = unpad_volume(generated_volume.permute(*inv_perm), pad_info).numpy()
-    print(f"Output shape: {generated_xyz.shape}")
+    print(f"Output shape (full): {generated_xyz.shape}")
+
+    if slice_indices is not None and args.format == "nifti":
+        pad_left = pad_info["padding"][slice_axis][0]
+        unpadded_lo = min(slice_indices) - pad_left
+        unpadded_hi = max(slice_indices) - pad_left + 1
+        generated_xyz, affine = crop_to_slice_range(
+            generated_xyz, slice_axis, unpadded_lo, unpadded_hi, affine,
+        )
+        header = None  # original header's shape no longer matches; let nibabel rebuild it
+        print(f"Cropped to hippocampus slab along axis {slice_axis}: {generated_xyz.shape}")
 
     if args.format == "nifti":
         import torchio as tio

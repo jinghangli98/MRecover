@@ -80,7 +80,7 @@ class DirectInference(nn.Module):
         return self.model(model_input, timesteps)
 
 
-def direct_inference(inferencer, mprage_volume, args, device):
+def direct_inference(inferencer, mprage_volume, args, device, slice_indices=None):
     """Slice-by-slice inference for baseline/pix2pix models.
 
     Args:
@@ -88,6 +88,7 @@ def direct_inference(inferencer, mprage_volume, args, device):
         mprage_volume: Tensor (num_slices, H, W)
         args: Namespace with .no_fp16, .no_auto
         device: torch.device
+        slice_indices: Optional iterable of slice indices to process; others stay zero.
 
     Returns:
         generated_volume: Tensor (num_slices, H, W)
@@ -100,9 +101,18 @@ def direct_inference(inferencer, mprage_volume, args, device):
     use_fp16 = not args.no_fp16
     autoregressive = not args.no_auto
 
-    print(f"Generating {num_slices} slices...")
+    if slice_indices is None:
+        indices = list(range(num_slices))
+        print(f"Generating {num_slices} slices...")
+    else:
+        indices = sorted(set(int(i) for i in slice_indices))
+        print(f"Generating {len(indices)} of {num_slices} slices (localized region)...")
 
-    for slice_idx in tqdm(range(num_slices), desc="Generating slices"):
+    prev_idx = None
+    for slice_idx in tqdm(indices, desc="Generating slices"):
+        if autoregressive and prev_idx is not None and slice_idx - prev_idx > 1:
+            prev_slice = torch.zeros((1, 1, height, width), device=device)
+
         mprage_slice = mprage_volume[slice_idx : slice_idx + 1].to(device).unsqueeze(0)
 
         with torch.no_grad():
@@ -115,10 +125,12 @@ def direct_inference(inferencer, mprage_volume, args, device):
             generated_volume[slice_idx] = gen.squeeze(0).squeeze(0).float().cpu()
             prev_slice = gen.detach().float() if autoregressive else torch.zeros((1, 1, height, width), device=device)
 
+        prev_idx = slice_idx
+
     return generated_volume, mprage_volume
 
 
-def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
+def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device, slice_indices=None):
     """Slice-by-slice autoregressive flow matching for T1w→T2 TSE translation.
 
     Args:
@@ -126,6 +138,7 @@ def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
         mprage_volume: Tensor (num_slices, H, W) — normalised and permuted
         args: Namespace with .steps, .no_fp16, .rk4, .no_auto
         device: torch.device
+        slice_indices: Optional iterable of slice indices to process; others stay zero.
 
     Returns:
         generated_volume: Tensor (num_slices, H, W)
@@ -139,9 +152,18 @@ def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
     use_euler = not getattr(args, "rk4", False)
     autoregressive = not args.no_auto
 
-    print(f"Generating {num_slices} slices using flow matching (TSE)...")
+    if slice_indices is None:
+        indices = list(range(num_slices))
+        print(f"Generating {num_slices} slices using flow matching (TSE)...")
+    else:
+        indices = sorted(set(int(i) for i in slice_indices))
+        print(f"Generating {len(indices)} of {num_slices} slices using flow matching (localized)...")
 
-    for slice_idx in tqdm(range(num_slices), desc="Generating slices"):
+    prev_idx = None
+    for slice_idx in tqdm(indices, desc="Generating slices"):
+        if autoregressive and prev_idx is not None and slice_idx - prev_idx > 1:
+            prev_slice = torch.zeros((1, 1, height, width), device=device)
+
         mprage_slice = mprage_volume[slice_idx : slice_idx + 1].to(device).unsqueeze(0)
 
         with torch.no_grad():
@@ -161,5 +183,7 @@ def tse_flow_matching_inference(flow_matcher, mprage_volume, args, device):
 
             generated_volume[slice_idx] = gen.squeeze(0).squeeze(0).cpu()
             prev_slice = gen.detach() if autoregressive else torch.zeros((1, 1, height, width), device=device)
+
+        prev_idx = slice_idx
 
     return generated_volume, mprage_volume

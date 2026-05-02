@@ -58,6 +58,35 @@ def unpad_volume(padded_data, pad_info):
     return padded_data[x_l : x_l + ox, y_l : y_l + oy, z_l : z_l + oz]
 
 
+def crop_to_slice_range(volume_xyz, slice_axis, lo, hi, affine):
+    """Crop an (X, Y, Z) volume to [lo, hi) along `slice_axis` and shift the affine.
+
+    The returned affine keeps every cropped voxel's world coordinates identical
+    to the original — only the origin shifts so that voxel index 0 of the crop
+    sits where index `lo` did in the source.
+
+    Args:
+        volume_xyz: np.ndarray or torch.Tensor with shape (X, Y, Z).
+        slice_axis: int in {0, 1, 2}.
+        lo, hi: crop bounds (clamped to [0, dim]).
+        affine: (4, 4) np.ndarray of the source volume.
+
+    Returns:
+        cropped_volume, new_affine
+    """
+    dim = volume_xyz.shape[slice_axis]
+    lo = max(0, min(int(lo), dim))
+    hi = max(lo, min(int(hi), dim))
+
+    crop = [slice(None)] * 3
+    crop[slice_axis] = slice(lo, hi)
+    cropped = volume_xyz[tuple(crop)]
+
+    new_affine = np.array(affine, copy=True)
+    new_affine[:3, 3] = affine[:3, 3] + lo * affine[:3, slice_axis]
+    return cropped, new_affine
+
+
 def quantile_normalization(data, lower_quantile=0.01, upper_quantile=0.99):
     """Normalize voxel values to [0, 1] using percentile clipping."""
     data = np.nan_to_num(data, nan=0.0)

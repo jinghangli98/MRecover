@@ -55,6 +55,12 @@ docker run --rm --gpus all -e HF_TOKEN=$HF_TOKEN -v "$PWD:/data" mrecover:cuda12
 ### CLI
 
 ```bash
+# Default: only synthesise the coronal slab containing the hippocampus
+mrecover -i T1.nii.gz -o T2tse_hippo.nii.gz
+
+# Synthesise the whole brain (skip hippocampus localization)
+mrecover -i T1.nii.gz -o T2tse_whole.nii.gz --whole-brain
+
 # Force anisotropic TSE-like spacing (0.375 × 1.5 × 0.375 mm)
 mrecover -i T1.nii.gz -o T2tse.nii.gz --tse-through-plane 1.5
 
@@ -64,6 +70,10 @@ mrecover -i T1_registered.nii.gz -o T2tse.nii.gz --tse-registered
 # Higher quality with more ODE steps
 mrecover -i T1.nii.gz -o T2tse.nii.gz --steps 10
 ```
+
+### Hippocampus localization (default)
+
+By default MRecover localizes the hippocampus on the input T1w using a lightweight 3D segmentation model and only synthesises slices that contain it (plus a 4-slice margin on each side for autoregressive warm-up). The saved NIfTI is cropped to that slab and its affine is shifted so it overlays the input T1w in any viewer with no spatial offset. Pass `--whole-brain` to skip localization and synthesise every slice; tune the margin with `--hippo-margin N`.
 
 ### Python API
 
@@ -80,6 +90,8 @@ mrecover.translate(
     steps=10,
     tse_through_plane=1.5,   # resample through-plane to 1.5 mm
     tse_inplane=0.375,        # target in-plane resolution
+    whole_brain=False,        # default: localize hippocampus and crop output
+    hippo_margin=4,           # extra slices on each side of the hippocampus
 )
 
 # Returns the generated volume as a numpy array
@@ -101,6 +113,8 @@ print(volume.shape)  # (X, Y, Z)
 | `--tse-inplane` | 0.375 | In-plane resampling target (mm) |
 | `--tse-through-plane` | None | Through-plane resampling target (mm) |
 | `--tse-registered` | off | Skip resampling (input already in TSE space) |
+| `--whole-brain` | off | Synthesise every slice. Default: localize hippocampus and synthesise only that slab. |
+| `--hippo-margin` | 4 | Extra slices on each side of the localized hippocampus region. Ignored with `--whole-brain`. |
 | `--model` | None | Path to custom model checkpoint |
 | `--seed` | 42 | Random seed |
 
@@ -108,4 +122,11 @@ print(volume.shape)  # (X, Y, Z)
 
 **Input:** T1w MPRAGE NIfTI (`.nii` / `.nii.gz`) at any isotropic resolution (e.g. 0.55–1 mm), or a DICOM series directory.
 
-**Output:** Synthetic T2 TSE NIfTI or DICOM. By default the output is resampled to 0.375 mm in-plane with the through-plane spacing preserved from the input.
+**Output:** Synthetic T2 TSE NIfTI or DICOM. By default the output is resampled to 0.375 mm in-plane with the through-plane spacing preserved from the input. When hippocampus localization is on (default), the NIfTI is cropped to the hippocampus slab with the affine adjusted to preserve world-space alignment with the input.
+
+## Acknowledgments
+
+Hippocampus localization in MRecover uses the segmentation model from [hippodeep_pytorch](https://github.com/bthyreau/hippodeep_pytorch) by Benjamin Thyreau, distributed under that project's terms. If you use the hippocampus-localized output, please cite:
+
+> Thyreau, B., Sato, K., Fukuda, H., & Taki, Y. (2018). Segmentation of the hippocampus by transferring algorithmic knowledge for large cohort processing. *Medical Image Analysis*, 43, 214–228. https://doi.org/10.1016/j.media.2017.11.004
+> https://www.sciencedirect.com/science/article/pii/S1361841517301597

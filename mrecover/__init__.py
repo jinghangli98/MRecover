@@ -16,6 +16,7 @@ from .utils import (
     load_tse_input_data,
     pad_volume_to_divisible,
     unpad_volume,
+    crop_to_slice_range,
     save_results,
 )
 
@@ -34,6 +35,8 @@ def translate(
     tse_inplane=0.375,
     tse_through_plane=None,
     tse_registered=False,
+    whole_brain=False,
+    hippo_margin=4,
     seed=42,
 ):
     """Translate a T1w MRI volume to synthetic T2 TSE contrast.
@@ -51,6 +54,10 @@ def translate(
         tse_inplane: Target in-plane resolution in mm for native T1w (default 0.375).
         tse_through_plane: Through-plane resolution in mm; None keeps input spacing.
         tse_registered: Set True if input is already in TSE voxel space.
+        whole_brain: If True, run inference on every slice. If False (default),
+            localize the hippocampus and only synthesise slices in that region.
+        hippo_margin: Slices added on each side of the hippocampus region
+            (default 4). Ignored when ``whole_brain=True``.
         seed: Random seed for reproducibility (default 42).
 
     Returns:
@@ -80,6 +87,8 @@ def translate(
         tse_inplane=tse_inplane,
         tse_through_plane=tse_through_plane,
         tse_registered=tse_registered,
+        whole_brain=whole_brain,
+        hippo_margin=hippo_margin,
         tse=True,
     )
 
@@ -99,11 +108,38 @@ def translate(
     inv_perm = tuple(perm_to_nhw.index(a) for a in (0, 1, 2))
     mprage_padded = volume_xyz_padded.permute(*perm_to_nhw)
 
+    slice_indices = None
+    if not whole_brain and input_format == "nifti":
+        try:
+            from .hippo_localizer import localize_hippocampus_slices
+            slice_indices = localize_hippocampus_slices(
+                str(input_path),
+                target_affine=affine,
+                target_shape=tuple(volume_xyz.shape),
+                slice_axis=slice_axis,
+                pad_info=pad_info,
+                margin=hippo_margin,
+            )
+        except Exception as e:
+            print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
+            slice_indices = None
+
     start = time.time()
-    generated_volume, _ = tse_flow_matching_inference(flow_matcher, mprage_padded, args, device)
+    generated_volume, _ = tse_flow_matching_inference(
+        flow_matcher, mprage_padded, args, device, slice_indices=slice_indices,
+    )
     print(f"Translation completed in {time.time() - start:.2f}s")
 
     generated_xyz = unpad_volume(generated_volume.permute(*inv_perm), pad_info).numpy()
+
+    if slice_indices is not None and input_format == "nifti":
+        pad_left = pad_info["padding"][slice_axis][0]
+        unpadded_lo = min(slice_indices) - pad_left
+        unpadded_hi = max(slice_indices) - pad_left + 1
+        generated_xyz, affine = crop_to_slice_range(
+            generated_xyz, slice_axis, unpadded_lo, unpadded_hi, affine,
+        )
+        header = None
 
     if input_format == "nifti":
         import torchio as tio
