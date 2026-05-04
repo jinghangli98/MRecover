@@ -13,6 +13,7 @@ from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference
 from .models import load_model, resolve_device
 from .utils import (
     detect_input_format,
+    estimate_tse_tilt_for_input,
     load_tse_input_data,
     pad_volume_to_divisible,
     unpad_volume,
@@ -36,6 +37,7 @@ def translate(
     tse_through_plane=None,
     tse_registered=False,
     tse_tilt_deg=None,
+    tse_auto_tilt=False,
     tse_inplane_shape=(456, 512),
     whole_brain=False,
     hippo_margin=5.0,
@@ -57,6 +59,9 @@ def translate(
         tse_inplane: Target in-plane resolution in mm for native T1w (default 0.375).
         tse_through_plane: Through-plane resolution in mm; None keeps input spacing.
         tse_registered: Set True if input is already in TSE voxel space.
+        tse_tilt_deg: Manual coronal-oblique tilt angle in degrees.
+        tse_auto_tilt: Estimate ``tse_tilt_deg`` from hippocampus segmentation.
+            If estimation fails, normal non-oblique resampling is used.
         whole_brain: If True, run inference on every slice. If False (default),
             localize the hippocampus and only synthesise slices in that region.
         hippo_margin: Margin in millimetres added on each side of the
@@ -86,6 +91,15 @@ def translate(
         output_format = input_format
     if output_format == "dcm" and input_format != "dcm":
         raise ValueError("DCM output requires DCM input as a metadata donor.")
+    if tse_auto_tilt and tse_tilt_deg is not None:
+        raise ValueError("tse_auto_tilt cannot be used together with tse_tilt_deg.")
+    if tse_auto_tilt:
+        try:
+            tse_tilt_deg = estimate_tse_tilt_for_input(str(input_path), input_format)
+            print(f"Auto-estimated TSE tilt: {tse_tilt_deg:.1f}°")
+        except Exception as e:
+            print(f"Auto TSE tilt estimation failed ({e}); falling back to normal non-oblique resampling.")
+            tse_tilt_deg = None
 
     args = argparse.Namespace(
         input=str(input_path),
@@ -100,6 +114,7 @@ def translate(
         tse_through_plane=tse_through_plane,
         tse_registered=tse_registered,
         tse_tilt_deg=tse_tilt_deg,
+        tse_auto_tilt=tse_auto_tilt,
         tse_inplane_shape=tse_inplane_shape,
         whole_brain=whole_brain,
         hippo_margin=hippo_margin,

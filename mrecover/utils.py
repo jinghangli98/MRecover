@@ -143,6 +143,68 @@ def load_dicom_with_sitk(folder_path, reorient=False):
     return image, array, affine
 
 
+def _mask_tilt_deg(mask_data, affine, min_voxels=10):
+    """Estimate one hippocampus mask's sagittal long-axis angle in degrees."""
+    points_ijk = np.argwhere(np.asarray(mask_data) > 0)
+    if points_ijk.shape[0] < int(min_voxels):
+        return None
+
+    points_h = np.c_[points_ijk.astype(np.float64), np.ones(points_ijk.shape[0])]
+    points_world = (np.asarray(affine, dtype=np.float64) @ points_h.T).T[:, :3]
+    sagittal_yz = points_world[:, [1, 2]]
+    sagittal_yz -= sagittal_yz.mean(axis=0, keepdims=True)
+
+    _, _, vh = np.linalg.svd(sagittal_yz, full_matrices=False)
+    long_axis = vh[0]
+    if long_axis[0] < 0:
+        long_axis *= -1
+
+    return float(np.rad2deg(np.arctan2(long_axis[1], long_axis[0])))
+
+
+def estimate_tse_tilt_from_masks(left_mask, right_mask, affine, clamp_degrees=45.0, min_voxels=10):
+    """Estimate coronal-oblique TSE tilt from hippocampus mask long axes.
+
+    The angle is measured in the sagittal A-S plane from world +A toward +S,
+    matching the convention used by ``build_oblique_target`` for rotations
+    around the RAS left-right axis.
+    """
+    angles = []
+    for mask in (left_mask, right_mask):
+        if mask is None:
+            continue
+        angle = _mask_tilt_deg(mask, affine, min_voxels=min_voxels)
+        if angle is not None and np.isfinite(angle):
+            angles.append(angle)
+
+    if not angles:
+        raise ValueError("no usable hippocampus voxels for auto tilt")
+
+    tilt_deg = float(np.median(angles))
+    clamp = abs(float(clamp_degrees))
+    return float(np.clip(tilt_deg, -clamp, clamp))
+
+
+def estimate_tse_tilt_for_input(input_path, input_format=None):
+    """Segment hippocampus and estimate the TSE oblique tilt angle."""
+    from contextlib import nullcontext
+    from .segmentation import segment_hippocampus
+
+    input_format = input_format or detect_input_format(input_path)
+    localizer_ctx = (
+        nullcontext(str(input_path))
+        if input_format == "nifti"
+        else dump_dicom_to_temp_nifti(str(input_path))
+    )
+
+    with localizer_ctx as localizer_path:
+        left_nii, right_nii = segment_hippocampus(localizer_path)
+
+    left_mask = np.asarray(left_nii.get_fdata()) > 0
+    right_mask = np.asarray(right_nii.get_fdata()) > 0
+    return estimate_tse_tilt_from_masks(left_mask, right_mask, left_nii.affine)
+
+
 def build_oblique_target(source, tilt_deg, spacing, inplane_shape):
     """Construct an oblique TSE-like resampling target.
 

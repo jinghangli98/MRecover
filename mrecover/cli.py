@@ -13,6 +13,7 @@ from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference, Direct
 from .models import load_model, resolve_device
 from .utils import (
     detect_input_format,
+    estimate_tse_tilt_for_input,
     load_tse_input_data,
     pad_volume_to_divisible,
     unpad_volume,
@@ -85,10 +86,14 @@ Examples:
                              "axis to mimic a coronal-oblique TSE acquisition box perpendicular "
                              "to the hippocampal long axis. Slice direction becomes the third "
                              "volume axis. Typical: -20.")
+    parser.add_argument("--tse-auto-tilt", action="store_true", default=False,
+                        dest="tse_auto_tilt",
+                        help="Estimate --tse-tilt-deg from the hippocampus segmentation. "
+                             "If estimation fails, fall back to normal non-oblique resampling.")
     parser.add_argument("--tse-inplane-shape", type=int, nargs=2, default=(456, 512),
                         dest="tse_inplane_shape", metavar=("N0", "N1"),
                         help="In-plane matrix size for oblique TSE mode (default: 456 512). "
-                             "Only used together with --tse-tilt-deg.")
+                             "Only used together with --tse-tilt-deg or --tse-auto-tilt.")
 
     parser.add_argument("--whole-brain", action="store_true", default=False,
                         help="Run inference on every slice. Default: localize hippocampus first "
@@ -118,6 +123,12 @@ def main():
     if args.output_format == "dcm" and args.format != "dcm":
         print("Error: --output-format dcm requires DCM input as a metadata donor.",
               file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        prepare_auto_tilt(args)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     # Required by save_results for DICOM branching; always True in MRecover
@@ -160,6 +171,25 @@ def main():
         import traceback
         traceback.print_exc()
         sys.exit(1)
+
+
+def prepare_auto_tilt(args):
+    """Resolve --tse-auto-tilt into args.tse_tilt_deg before resampling."""
+    if getattr(args, "tse_auto_tilt", False) and getattr(args, "tse_tilt_deg", None) is not None:
+        raise ValueError("--tse-auto-tilt cannot be used together with --tse-tilt-deg.")
+
+    if not getattr(args, "tse_auto_tilt", False):
+        return
+
+    try:
+        tilt_deg = estimate_tse_tilt_for_input(args.input, getattr(args, "format", None))
+    except Exception as e:
+        print(f"Auto TSE tilt estimation failed ({e}); falling back to normal non-oblique resampling.")
+        args.tse_tilt_deg = None
+        return
+
+    args.tse_tilt_deg = tilt_deg
+    print(f"Auto-estimated TSE tilt: {tilt_deg:.1f}°")
 
 
 def _run_translation(args, inferencer, device):

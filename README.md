@@ -64,6 +64,9 @@ mrecover -i T1.nii.gz -o T2tse_whole.nii.gz --whole-brain
 # Force anisotropic TSE-like spacing (0.375 × 1.5 × 0.375 mm)
 mrecover -i T1.nii.gz -o T2tse.nii.gz --tse-through-plane 1.5
 
+# Estimate a coronal-oblique TSE tilt from the hippocampus segmentation
+mrecover -i T1.nii.gz -o T2tse_oblique.nii.gz --tse-auto-tilt
+
 # Input already registered to TSE space (skip resampling)
 mrecover -i T1_registered.nii.gz -o T2tse.nii.gz --tse-registered
 
@@ -90,6 +93,7 @@ mrecover.translate(
     steps=10,
     tse_through_plane=1.5,   # resample through-plane to 1.5 mm
     tse_inplane=0.375,        # target in-plane resolution
+    tse_auto_tilt=True,        # estimate coronal-oblique tilt from hippocampus
     whole_brain=False,        # default: localize hippocampus and crop output
     hippo_margin=10.0,         # margin in mm on each side of the hippocampus
 )
@@ -113,6 +117,8 @@ print(volume.shape)  # (X, Y, Z)
 | `--tse-inplane` | 0.375 | In-plane resampling target (mm) |
 | `--tse-through-plane` | None | Through-plane resampling target (mm) |
 | `--tse-registered` | off | Skip resampling (input already in TSE space) |
+| `--tse-tilt-deg` | None | Manual coronal-oblique tilt angle in degrees |
+| `--tse-auto-tilt` | off | Estimate coronal-oblique tilt from the hippocampus segmentation. Falls back to normal non-oblique resampling if estimation fails. |
 | `--whole-brain` | off | Synthesise every slice. Default: localize hippocampus and synthesise only that slab. |
 | `--hippo-margin` | 10.0 | Margin in millimetres on each side of the localized hippocampus region. Ignored with `--whole-brain`. |
 | `--model` | None | Path to custom model checkpoint |
