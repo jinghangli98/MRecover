@@ -1,6 +1,8 @@
 """Data loading, preprocessing, and saving utilities for MRecover."""
 
 import os
+import tempfile
+from contextlib import contextmanager
 import numpy as np
 import torch
 import nibabel as nib
@@ -167,7 +169,18 @@ def load_tse_input_data(input_path, args):
     tse_through = getattr(args, "tse_through_plane", None)
     registered = getattr(args, "tse_registered", False)
 
-    image = tio.ScalarImage(input_path)
+    input_format = getattr(args, "format", None) or detect_input_format(input_path)
+
+    if input_format == "dcm":
+        folder = input_path if Path(input_path).is_dir() else str(Path(input_path).parent or ".")
+        series_ids = sitk.ImageSeriesReader().GetGDCMSeriesIDs(folder)
+        if len(series_ids) > 1:
+            print(f"Warning: {len(series_ids)} DICOM series found in {folder}; using first ({series_ids[0]}).")
+        _, array_xyz, dcm_affine = load_dicom_with_sitk(input_path, reorient=True)
+        tensor = torch.from_numpy(array_xyz).unsqueeze(0).float()
+        image = tio.ScalarImage(tensor=tensor, affine=dcm_affine)
+    else:
+        image = tio.ScalarImage(input_path)
 
     if not registered:
         image = tio.ToCanonical()(image)
@@ -276,15 +289,39 @@ def save_results(generated_volume, output_path, args, affine=None, header=None):
     else:
         volume_data = np.zeros(generated_volume.shape, dtype=np.uint8)
 
-    if args.format == "nifti":
+    out_fmt = getattr(args, "output_format", None) or args.format
+
+    if out_fmt == "nifti":
         os.makedirs(Path(output_path).parent, exist_ok=True)
         nii_img = nib.Nifti1Image(volume_data, affine, header) if header is not None else nib.Nifti1Image(volume_data, affine)
         nii_img.set_data_dtype(np.uint8)
         nib.save(nii_img, output_path)
         print(f"Saved NIfTI: {output_path}")
 
-    elif args.format == "dcm":
+    elif out_fmt == "dcm":
         spacing = (abs(float(affine[0][0])), abs(float(affine[1][1])), abs(float(affine[2][2])))
         output_folder = str(Path(output_path) / f"{Path(args.input).name}_T2TSE")
         save_enhanced_dicom(volume_data, args.input, output_folder,
                             new_spacing=spacing, series_description_suffix="_T2TSE")
+
+
+@contextmanager
+def dump_dicom_to_temp_nifti(dicom_path):
+    """Yield a temp `.nii.gz` path containing the DICOM volume in RAS+ orientation.
+
+    The temp file is deleted on exit. Used so format-agnostic helpers that
+    require a NIfTI file path (e.g. the hippocampus localizer) can run on
+    DICOM input.
+    """
+    _, array_xyz, dcm_affine = load_dicom_with_sitk(dicom_path, reorient=True)
+    tmp = tempfile.NamedTemporaryFile(suffix=".nii.gz", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    try:
+        nib.Nifti1Image(array_xyz.astype(np.float32), dcm_affine).to_filename(tmp_path)
+        yield tmp_path
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass

@@ -38,6 +38,7 @@ def translate(
     whole_brain=False,
     hippo_margin=5.0,
     seed=42,
+    output_format=None,
 ):
     """Translate a T1w MRI volume to synthetic T2 TSE contrast.
 
@@ -59,6 +60,9 @@ def translate(
         hippo_margin: Margin in millimetres added on each side of the
             hippocampus region (default 5.0). Ignored when ``whole_brain=True``.
         seed: Random seed for reproducibility (default 42).
+        output_format: Output format ('nifti' or 'dcm'). If None, mirrors the
+            detected input format. DCM output requires DCM input as a metadata
+            donor; passing 'dcm' with NIfTI input raises ValueError.
 
     Returns:
         np.ndarray: Generated T2 TSE volume (X, Y, Z).
@@ -76,10 +80,16 @@ def translate(
 
     input_format = detect_input_format(str(input_path))
 
+    if output_format is None:
+        output_format = input_format
+    if output_format == "dcm" and input_format != "dcm":
+        raise ValueError("DCM output requires DCM input as a metadata donor.")
+
     args = argparse.Namespace(
         input=str(input_path),
         output=str(output_path),
         format=input_format,
+        output_format=output_format,
         steps=steps,
         no_fp16=not fp16,
         no_auto=not autoregressive,
@@ -109,17 +119,26 @@ def translate(
     mprage_padded = volume_xyz_padded.permute(*perm_to_nhw)
 
     slice_indices = None
-    if not whole_brain and input_format == "nifti":
+    if not whole_brain:
         try:
             from .hippo_localizer import localize_hippocampus_slices
-            slice_indices = localize_hippocampus_slices(
-                str(input_path),
-                target_affine=affine,
-                target_shape=tuple(volume_xyz.shape),
-                slice_axis=slice_axis,
-                pad_info=pad_info,
-                margin_mm=hippo_margin,
+            from .utils import dump_dicom_to_temp_nifti
+            from contextlib import nullcontext
+
+            localizer_ctx = (
+                nullcontext(str(input_path))
+                if input_format == "nifti"
+                else dump_dicom_to_temp_nifti(str(input_path))
             )
+            with localizer_ctx as localizer_path:
+                slice_indices = localize_hippocampus_slices(
+                    localizer_path,
+                    target_affine=affine,
+                    target_shape=tuple(volume_xyz.shape),
+                    slice_axis=slice_axis,
+                    pad_info=pad_info,
+                    margin_mm=hippo_margin,
+                )
         except Exception as e:
             print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
             slice_indices = None
@@ -132,7 +151,7 @@ def translate(
 
     generated_xyz = unpad_volume(generated_volume.permute(*inv_perm), pad_info).numpy()
 
-    if slice_indices is not None and input_format == "nifti":
+    if slice_indices is not None:
         pad_left = pad_info["padding"][slice_axis][0]
         unpadded_lo = min(slice_indices) - pad_left
         unpadded_hi = max(slice_indices) - pad_left + 1
