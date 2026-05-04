@@ -351,6 +351,7 @@ def save_enhanced_dicom(enhanced_array, original_dicom_folder, output_folder,
         ds.PixelData = slice_data.astype(np.int16).tobytes()
         ds.Rows, ds.Columns = slice_data.shape
         ds.PixelSpacing = [float(native_spacing[1]), float(native_spacing[0])]
+        ds.MRAcquisitionType = "2D"
 
         if hasattr(ds, "SliceThickness"):
             ds.SliceThickness = float(native_spacing[2])
@@ -441,6 +442,7 @@ def save_oblique_dicom(volume, donor_path, output_folder, *,
         ds.Rows = int(n_dicom_rows)
         ds.Columns = int(n_dicom_cols)
         ds.PixelSpacing = pixel_spacing
+        ds.MRAcquisitionType = "2D"
         if hasattr(ds, "SliceThickness"):
             ds.SliceThickness = sp_slice
         if hasattr(ds, "SpacingBetweenSlices"):
