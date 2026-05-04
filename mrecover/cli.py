@@ -13,6 +13,7 @@ from .core import AutoregressiveFlowMatcher, tse_flow_matching_inference, Direct
 from .models import load_model, resolve_device
 from .utils import (
     detect_input_format,
+    estimate_tse_tilt_for_input,
     load_tse_input_data,
     pad_volume_to_divisible,
     unpad_volume,
@@ -59,6 +60,10 @@ Examples:
                         help="Device: auto, cuda, mps, or cpu (default: auto)")
     parser.add_argument("--format", default=None, choices=["nifti", "dcm"],
                         help="Input format (default: auto-detect)")
+    parser.add_argument("--output-format", default=None, choices=["nifti", "dcm"],
+                        dest="output_format",
+                        help="Output format (default: mirror input format). "
+                             "DCM output requires DCM input as a metadata donor.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
 
     parser.add_argument("--no-fp16", action="store_true",
@@ -76,6 +81,19 @@ Examples:
                         help="Target in-plane resolution in mm for native T1w (default: 0.375)")
     parser.add_argument("--tse-through-plane", type=float, default=None, dest="tse_through_plane",
                         help="Through-plane resolution in mm (e.g. 1.5); default: keep input spacing")
+    parser.add_argument("--tse-tilt-deg", type=float, default=None, dest="tse_tilt_deg",
+                        help="Rotate the resampling grid by this angle (deg) around the L-R "
+                             "axis to mimic a coronal-oblique TSE acquisition box perpendicular "
+                             "to the hippocampal long axis. Slice direction becomes the third "
+                             "volume axis. Typical: -20.")
+    parser.add_argument("--tse-auto-tilt", action="store_true", default=False,
+                        dest="tse_auto_tilt",
+                        help="Estimate --tse-tilt-deg from the hippocampus segmentation. "
+                             "If estimation fails, fall back to normal non-oblique resampling.")
+    parser.add_argument("--tse-inplane-shape", type=int, nargs=2, default=(456, 512),
+                        dest="tse_inplane_shape", metavar=("N0", "N1"),
+                        help="In-plane matrix size for oblique TSE mode (default: 456 512). "
+                             "Only used together with --tse-tilt-deg or --tse-auto-tilt.")
 
     parser.add_argument("--whole-brain", action="store_true", default=False,
                         help="Run inference on every slice. Default: localize hippocampus first "
@@ -99,6 +117,19 @@ def main():
     if args.format is None:
         args.format = detect_input_format(args.input)
         print(f"Auto-detected input format: {args.format}")
+
+    if args.output_format is None:
+        args.output_format = args.format
+    if args.output_format == "dcm" and args.format != "dcm":
+        print("Error: --output-format dcm requires DCM input as a metadata donor.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        prepare_auto_tilt(args)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Required by save_results for DICOM branching; always True in MRecover
     args.tse = True
@@ -142,6 +173,25 @@ def main():
         sys.exit(1)
 
 
+def prepare_auto_tilt(args):
+    """Resolve --tse-auto-tilt into args.tse_tilt_deg before resampling."""
+    if getattr(args, "tse_auto_tilt", False) and getattr(args, "tse_tilt_deg", None) is not None:
+        raise ValueError("--tse-auto-tilt cannot be used together with --tse-tilt-deg.")
+
+    if not getattr(args, "tse_auto_tilt", False):
+        return
+
+    try:
+        tilt_deg = estimate_tse_tilt_for_input(args.input, getattr(args, "format", None))
+    except Exception as e:
+        print(f"Auto TSE tilt estimation failed ({e}); falling back to normal non-oblique resampling.")
+        args.tse_tilt_deg = None
+        return
+
+    args.tse_tilt_deg = tilt_deg
+    print(f"Auto-estimated TSE tilt: {tilt_deg:.1f}°")
+
+
 def _run_translation(args, inferencer, device):
     """Execute the full T1w→T2 TSE translation pipeline."""
     volume_xyz, slice_axis, affine, header = load_tse_input_data(args.input, args)
@@ -156,22 +206,28 @@ def _run_translation(args, inferencer, device):
 
     slice_indices = None
     if not args.whole_brain:
-        if args.format != "nifti":
-            print("Hippocampus localization requires NIfTI input; falling back to whole-brain.")
-        else:
-            try:
-                from .hippo_localizer import localize_hippocampus_slices
+        try:
+            from .hippo_localizer import localize_hippocampus_slices
+            from .utils import dump_dicom_to_temp_nifti
+            from contextlib import nullcontext
+
+            localizer_ctx = (
+                nullcontext(args.input)
+                if args.format == "nifti"
+                else dump_dicom_to_temp_nifti(args.input)
+            )
+            with localizer_ctx as localizer_path:
                 slice_indices = localize_hippocampus_slices(
-                    args.input,
+                    localizer_path,
                     target_affine=affine,
                     target_shape=tuple(volume_xyz.shape),
                     slice_axis=slice_axis,
                     pad_info=pad_info,
                     margin_mm=args.hippo_margin,
                 )
-            except Exception as e:
-                print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
-                slice_indices = None
+        except Exception as e:
+            print(f"Hippocampus localization failed ({e}); falling back to whole-brain.")
+            slice_indices = None
 
     start = time.time()
     if isinstance(inferencer, AutoregressiveFlowMatcher):
@@ -189,7 +245,7 @@ def _run_translation(args, inferencer, device):
     generated_xyz = unpad_volume(generated_volume.permute(*inv_perm), pad_info).numpy()
     print(f"Output shape (full): {generated_xyz.shape}")
 
-    if slice_indices is not None and args.format == "nifti":
+    if slice_indices is not None:
         pad_left = pad_info["padding"][slice_axis][0]
         unpadded_lo = min(slice_indices) - pad_left
         unpadded_hi = max(slice_indices) - pad_left + 1
