@@ -80,6 +80,15 @@ Examples:
                         help="Target in-plane resolution in mm for native T1w (default: 0.375)")
     parser.add_argument("--tse-through-plane", type=float, default=None, dest="tse_through_plane",
                         help="Through-plane resolution in mm (e.g. 1.5); default: keep input spacing")
+    parser.add_argument("--tse-tilt-deg", type=float, default=None, dest="tse_tilt_deg",
+                        help="Rotate the resampling grid by this angle (deg) around the L-R "
+                             "axis to mimic a coronal-oblique TSE acquisition box perpendicular "
+                             "to the hippocampal long axis. Slice direction becomes the third "
+                             "volume axis. Typical: -20.")
+    parser.add_argument("--tse-inplane-shape", type=int, nargs=2, default=(456, 512),
+                        dest="tse_inplane_shape", metavar=("N0", "N1"),
+                        help="In-plane matrix size for oblique TSE mode (default: 456 512). "
+                             "Only used together with --tse-tilt-deg.")
 
     parser.add_argument("--whole-brain", action="store_true", default=False,
                         help="Run inference on every slice. Default: localize hippocampus first "
