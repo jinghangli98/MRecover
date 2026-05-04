@@ -336,6 +336,8 @@ def load_tse_input_data(input_path, args):
         image = tio.ScalarImage(input_path)
 
     if registered:
+        if input_format != "dcm":
+            image = tio.ToCanonical()(image)
         print(f"Pre-registered mode: loading T1w as-is "
               f"(spacing: {tuple(f'{s:.3f}' for s in image.spacing)} mm)")
         slice_axis = 2
