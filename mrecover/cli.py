@@ -86,10 +86,14 @@ Examples:
                              "axis to mimic a coronal-oblique TSE acquisition box perpendicular "
                              "to the hippocampal long axis. Slice direction becomes the third "
                              "volume axis. Typical: -20.")
-    parser.add_argument("--tse-auto-tilt", action="store_true", default=False,
+    parser.add_argument("--tse-auto-tilt", action="store_true", default=True,
                         dest="tse_auto_tilt",
-                        help="Estimate --tse-tilt-deg from the hippocampus segmentation. "
-                             "If estimation fails, fall back to normal non-oblique resampling.")
+                        help="Estimate --tse-tilt-deg from the hippocampus segmentation "
+                             "(default: on). If estimation fails, fall back to normal "
+                             "non-oblique resampling. Ignored with --tse-tilt-deg or "
+                             "--tse-registered.")
+    parser.add_argument("--no-tse-auto-tilt", action="store_false", dest="tse_auto_tilt",
+                        help="Disable auto tilt and use normal non-oblique resampling.")
     parser.add_argument("--tse-inplane-shape", type=int, nargs=2, default=(456, 512),
                         dest="tse_inplane_shape", metavar=("N0", "N1"),
                         help="In-plane matrix size for oblique TSE mode (default: 456 512). "
@@ -174,11 +178,13 @@ def main():
 
 
 def prepare_auto_tilt(args):
-    """Resolve --tse-auto-tilt into args.tse_tilt_deg before resampling."""
-    if getattr(args, "tse_auto_tilt", False) and getattr(args, "tse_tilt_deg", None) is not None:
-        raise ValueError("--tse-auto-tilt cannot be used together with --tse-tilt-deg.")
+    """Resolve --tse-auto-tilt into args.tse_tilt_deg before resampling.
 
+    A manual --tse-tilt-deg or --tse-registered takes precedence over auto tilt.
+    """
     if not getattr(args, "tse_auto_tilt", False):
+        return
+    if getattr(args, "tse_tilt_deg", None) is not None or getattr(args, "tse_registered", False):
         return
 
     try:
