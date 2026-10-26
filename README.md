@@ -21,7 +21,7 @@ The models are hosted at https://huggingface.co/jil202/MRecover. You will need t
 The model will be downloaded from HuggingFace on first use after approval. You will need to authenticate:
 
 ```bash
-huggingface-cli login
+hf auth login
 ```
 
 ## Docker
